@@ -1,0 +1,66 @@
+id: jellyfin
+name: Jellyfin
+description: Free media server. Stream movies, TV shows, music, and photos to any device with hardware-accelerated transcoding.
+version: 10.10.0
+categories:
+  - media
+  - entertainment
+tags:
+  - media-server
+  - streaming
+  - transcoding
+  - gpu
+homepage: https://jellyfin.org
+license: GPL-2.0
+maintainers:
+  - PVE App Store
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: true
+    cores: 2
+    memory_mb: 4096
+    disk_gb: 20
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: media_path
+    label: Media Storage Path
+    type: string
+    default: /mnt/media
+    required: false
+    help: Path to your media library (can be a bind mount)
+  - key: transcode_threads
+    label: Transcode Threads
+    type: number
+    default: 0
+    required: false
+    help: Number of threads for software transcoding (0 = auto)
+
+provisioning:
+  script: provision/install.sh
+  timeout_sec: 600
+  env:
+    MEDIA_PATH: "{{media_path}}"
+    TRANSCODE_THREADS: "{{transcode_threads}}"
+
+outputs:
+  - key: url
+    label: Web UI
+    value: "http://{{ip}}:8096"
+  - key: setup
+    label: Setup
+    value: Complete initial setup at the Web UI
+
+gpu:
+  supported:
+    - intel
+    - nvidia
+  required: false
+  profiles:
+    - dri-render
+    - nvidia-basic
+  notes: Intel QSV or NVIDIA NVENC enables hardware-accelerated transcoding.

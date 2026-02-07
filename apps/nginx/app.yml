@@ -1,0 +1,59 @@
+id: nginx
+name: Nginx
+description: High-performance HTTP server and reverse proxy. Perfect as a front-end proxy for your homelab services.
+version: 1.27.0
+categories:
+  - networking
+  - web
+tags:
+  - proxy
+  - webserver
+  - reverse-proxy
+homepage: https://nginx.org
+license: BSD-2-Clause
+maintainers:
+  - PVE App Store
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: true
+    cores: 1
+    memory_mb: 256
+    disk_gb: 2
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: domain
+    label: Domain Name
+    type: string
+    default: ""
+    required: false
+    help: Optional domain name for the default server block
+  - key: enable_ssl
+    label: Enable SSL
+    type: boolean
+    default: false
+    required: false
+    help: Generate a self-signed certificate for HTTPS
+
+provisioning:
+  script: provision/install.sh
+  timeout_sec: 300
+  env:
+    DOMAIN: "{{domain}}"
+    ENABLE_SSL: "{{enable_ssl}}"
+
+outputs:
+  - key: url
+    label: Web URL
+    value: "http://{{ip}}:80"
+  - key: config
+    label: Config Path
+    value: /etc/nginx/nginx.conf
+
+gpu:
+  supported: []
+  required: false

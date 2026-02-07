@@ -1,0 +1,76 @@
+id: ollama
+name: Ollama
+description: Run large language models locally. Supports Llama, Mistral, Gemma, and many more models with optional GPU acceleration.
+version: 0.5.0
+categories:
+  - ai
+  - tools
+tags:
+  - llm
+  - ai
+  - gpu
+  - machine-learning
+homepage: https://ollama.ai
+license: MIT
+maintainers:
+  - PVE App Store
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: true
+    cores: 4
+    memory_mb: 8192
+    disk_gb: 50
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: model
+    label: Default Model
+    type: select
+    default: llama3.2
+    required: false
+    help: Model to pull on first start
+    validation:
+      enum:
+        - llama3.2
+        - mistral
+        - gemma2
+        - phi3
+        - qwen2.5
+  - key: api_port
+    label: API Port
+    type: number
+    default: 11434
+    required: false
+    help: Port for the Ollama API
+    validation:
+      min: 1024
+      max: 65535
+
+provisioning:
+  script: provision/install.sh
+  timeout_sec: 1800
+  env:
+    DEFAULT_MODEL: "{{model}}"
+    API_PORT: "{{api_port}}"
+
+outputs:
+  - key: api_url
+    label: API URL
+    value: "http://{{ip}}:{{api_port}}"
+  - key: usage
+    label: Usage
+    value: "ollama run {{model}}"
+
+gpu:
+  supported:
+    - intel
+    - nvidia
+  required: false
+  profiles:
+    - dri-render
+    - nvidia-basic
+  notes: GPU acceleration significantly improves inference speed. NVIDIA GPUs require host drivers.

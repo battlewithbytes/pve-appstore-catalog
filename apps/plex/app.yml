@@ -1,0 +1,57 @@
+id: plex
+name: Plex Media Server
+description: Organize and stream your personal media collection. Supports movies, TV, music, photos, and live TV with DVR.
+version: 1.41.0
+categories:
+  - media
+  - entertainment
+tags:
+  - media-server
+  - streaming
+  - plex
+  - transcoding
+homepage: https://www.plex.tv
+license: Proprietary
+maintainers:
+  - PVE App Store
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: true
+    cores: 2
+    memory_mb: 4096
+    disk_gb: 20
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: claim_token
+    label: Plex Claim Token
+    type: secret
+    required: false
+    help: Get your claim token from https://plex.tv/claim (optional, can be set later)
+
+provisioning:
+  script: provision/install.sh
+  timeout_sec: 600
+  env:
+    PLEX_CLAIM: "{{claim_token}}"
+  redact_keys:
+    - PLEX_CLAIM
+
+outputs:
+  - key: url
+    label: Web UI
+    value: "http://{{ip}}:32400/web"
+
+gpu:
+  supported:
+    - intel
+    - nvidia
+  required: false
+  profiles:
+    - dri-render
+    - nvidia-basic
+  notes: Hardware transcoding requires Plex Pass and a supported GPU.

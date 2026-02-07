@@ -1,0 +1,50 @@
+id: homeassistant
+name: Home Assistant
+description: Open source home automation platform. Control all your devices from a single, mobile-friendly interface.
+version: 2025.1.0
+categories:
+  - automation
+  - smart-home
+tags:
+  - home-automation
+  - iot
+  - smart-home
+  - dashboard
+homepage: https://www.home-assistant.io
+license: Apache-2.0
+maintainers:
+  - PVE App Store
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: true
+    cores: 2
+    memory_mb: 2048
+    disk_gb: 16
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: timezone
+    label: Timezone
+    type: string
+    default: America/New_York
+    required: true
+    help: Your local timezone (e.g., America/New_York, Europe/London)
+
+provisioning:
+  script: provision/install.sh
+  timeout_sec: 900
+  env:
+    TZ: "{{timezone}}"
+
+outputs:
+  - key: url
+    label: Web UI
+    value: "http://{{ip}}:8123"
+
+gpu:
+  supported: []
+  required: false
