@@ -7,7 +7,7 @@ overview: |
   The platform includes a full REST API with browser pool management, intelligent caching, proxy support, and multiple extraction strategies including CSS selectors, LLM-based extraction, and cosine similarity clustering. JavaScript execution hooks allow crawling of dynamic single-page applications.
 
   This container runs the Crawl4AI server with a built-in monitoring dashboard and interactive playground at port 11235. Point your AI applications at the /crawl endpoint to start extracting structured data from any website.
-version: 0.4.0
+version: 0.8.0
 categories:
   - ai
   - tools
@@ -23,6 +23,7 @@ license: Apache-2.0
 maintainers:
   - PVE App Store
 
+official: true
 lxc:
   ostemplate: debian-12
   defaults:
@@ -115,11 +116,11 @@ permissions:
     - libcairo2
     - libasound2
     - libatspi2.0-0
-  pip: [crawl4ai]
+  pip: [crawl4ai, fastapi, uvicorn]
   paths: ["/opt/crawl4ai/", "/var/lib/crawl4ai/", "/etc/systemd/"]
   services: [crawl4ai]
   users: [crawl4ai]
-  commands: ["/opt/crawl4ai/venv/bin/crawl4ai-setup"]
+  commands: ["su", "/opt/crawl4ai/venv/bin/playwright"]
 
 provisioning:
   script: provision/install.py
