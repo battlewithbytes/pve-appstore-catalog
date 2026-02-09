@@ -21,6 +21,7 @@ license: MIT
 maintainers:
   - PVE App Store
 
+official: true
 lxc:
   ostemplate: debian-12
   defaults:
@@ -39,7 +40,7 @@ volumes:
     size_gb: 50
     label: Model Storage
     required: true
-    description: Downloaded LLM model files (4-70GB each)
+    description: Downloaded LLM model files
 
 inputs:
   - key: model
@@ -100,6 +101,7 @@ permissions:
   installer_scripts: ["https://ollama.ai/install.sh"]
   paths: ["/etc/systemd/", "/usr/share/ollama/"]
   services: [ollama]
+  users: [ollama]
   commands: [ollama]
 
 provisioning:

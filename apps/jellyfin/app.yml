@@ -21,6 +21,7 @@ license: GPL-2.0
 maintainers:
   - PVE App Store
 
+official: true
 lxc:
   ostemplate: debian-12
   defaults:
@@ -39,7 +40,7 @@ volumes:
     size_gb: 2
     label: Jellyfin Data
     required: true
-    description: Application config, database, and metadata cache
+    description: Application config and database
   - name: media
     type: bind
     mount_path: /mnt/media
@@ -101,8 +102,9 @@ inputs:
 permissions:
   packages: [curl, gnupg]
   installer_scripts: ["https://repo.jellyfin.org/install-debuntu.sh"]
-  paths: ["/mnt/media", "/var/cache/jellyfin", "/etc/jellyfin/"]
+  paths: ["/mnt/media", "/var/cache/jellyfin", "/etc/jellyfin/", "/etc/systemd/"]
   services: [jellyfin]
+  commands: [usermod]
 
 provisioning:
   script: provision/install.py

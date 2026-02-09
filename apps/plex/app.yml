@@ -21,6 +21,7 @@ license: Proprietary
 maintainers:
   - PVE App Store
 
+official: true
 lxc:
   ostemplate: debian-12
   defaults:

@@ -7,7 +7,7 @@ overview: |
   The platform includes a full REST API with browser pool management, intelligent caching, proxy support, and multiple extraction strategies including CSS selectors, LLM-based extraction, and cosine similarity clustering. JavaScript execution hooks allow crawling of dynamic single-page applications.
 
   This container runs the Crawl4AI server with a built-in monitoring dashboard and interactive playground at port 11235. Point your AI applications at the /crawl endpoint to start extracting structured data from any website.
-version: 0.8.0
+version: 0.4.0
 categories:
   - ai
   - tools
@@ -34,15 +34,6 @@ lxc:
     features:
       - nesting
     onboot: true
-
-volumes:
-  - name: cache-data
-    type: volume
-    mount_path: /var/lib/crawl4ai
-    size_gb: 5
-    label: Cache & Data
-    required: true
-    description: Crawl cache and browser profile data
 
 inputs:
   - key: api_port
