@@ -83,4 +83,4 @@ cp -r apps/my-app /var/lib/pve-appstore/catalog/apps/
 
 Everything declared in `permissions` is enforced by the SDK. If your script tries to install a package or write to a path not listed, it fails with `PermissionDeniedError`.
 
-For the full reference (inputs, GPU, volumes, secrets, lifecycle methods), see [tutorial.md](tutorial.md).
+For the full reference (inputs, GPU, volumes, secrets, lifecycle methods), see the [App Development Tutorial](https://github.com/battlewithbytes/pve-appstore/blob/main/tutorial.md).
