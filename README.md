@@ -4,6 +4,19 @@ App catalog for the [PVE App Store](https://github.com/battlewithbytes/pve-appst
 
 Browse and install apps through the web UI — search by name, category, or tag.
 
+## Apps
+
+| App | Version | Category | GPU |
+|-----|---------|----------|-----|
+| [Crawl4AI](apps/crawl4ai/) | 0.4.0 | ai, tools | - |
+| [Gluetun VPN Client](apps/gluetun/) | 3.40.0 | networking, vpn | - |
+| [Hello World (Nginx)](apps/hello-world/) | 1.0.1 | web, tools | - |
+| [Home Assistant](apps/homeassistant/) | 2025.1.0 | automation, smart-home | - |
+| [Jellyfin](apps/jellyfin/) | 10.10.0 | media, entertainment | intel, nvidia |
+| [Nginx](apps/nginx/) | 1.27.0 | networking, web | - |
+| [Ollama](apps/ollama/) | 0.6.0 | ai, tools | intel, nvidia |
+| [Plex Media Server](apps/plex/) | 1.41.0 | media, entertainment | intel, nvidia |
+
 ## Structure
 
 ```
@@ -13,6 +26,7 @@ apps/<app-id>/
     install.py         # Install script (Python SDK, runs inside the container)
   icon.png             # Optional app icon
   README.md            # Optional detailed documentation
+  test.yml             # Optional test config (inputs for automated testing)
 ```
 
 ## Contributing
@@ -44,6 +58,8 @@ lxc:
     disk_gb: 8
     features: [nesting]
     onboot: true
+  extra_config:               # Optional raw LXC config lines (allowlisted keys only)
+    - "lxc.cap.add: net_admin"
 
 inputs:                       # User-configurable parameters
   - key: param_name
@@ -69,6 +85,7 @@ permissions:                  # Security allowlist — the SDK enforces these
 provisioning:
   script: provision/install.py  # Must be a .py file using the Python SDK
   timeout_sec: 300
+  redact_keys: [secret_key]  # Input keys to redact from logs
 
 outputs:                      # Shown to user after install
   - key: url
@@ -80,6 +97,13 @@ gpu:
   required: false
   profiles: [dri-render, nvidia-basic]
 ```
+
+### Security
+
+- **Permissions allowlist**: Every SDK operation (installing packages, writing files, downloading URLs) is checked against the `permissions` section. Unauthorized operations are blocked at runtime.
+- **Input validation**: Hostnames, IP addresses, bridge names, bind mount paths, environment variables, and device paths are validated server-side before any container operations.
+- **Secret inputs**: Use `type: secret` for sensitive inputs (passwords, API keys). Combine with `redact_keys` under `provisioning` to prevent them from appearing in job logs.
+- **Extra LXC config**: The `extra_config` field only allows a strict set of LXC configuration keys (`lxc.cap.add`, `lxc.cap.drop`, `lxc.environment`, `lxc.mount.entry`, `lxc.net.*`, `lxc.cgroup2.*`). All other keys are rejected.
 
 ### Writing an Install Script
 
@@ -103,3 +127,15 @@ run(MyApp)
 ```
 
 Available helpers: `apt_install()`, `pip_install()`, `create_venv()`, `write_config()`, `enable_service()`, `restart_service()`, `create_dir()`, `download()`, `create_user()`, `add_apt_key()`, `add_apt_repo()`, `run_command()`, `run_installer_script()`, `chown()`.
+
+### Test Config (test.yml)
+
+Apps can include a `test.yml` file with default inputs for automated integration testing:
+
+```yaml
+inputs:
+  http_port: "8080"
+  bind_address: "0.0.0.0"
+```
+
+Run tests with `pve-appstore test-apps --app <id>`.
