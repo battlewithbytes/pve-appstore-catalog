@@ -10,7 +10,7 @@ Browse and install apps through the web UI — search by name, category, or tag.
 
 | App | Version | Category | OS | GPU |
 |-----|---------|----------|----|-----|
-| [Crawl4AI](apps/crawl4ai/) | 0.4.0 | ai, tools | debian-12 | - |
+| [Crawl4AI](apps/crawl4ai/) | 0.5.0 | ai, tools | debian-12 | - |
 | [GitLab CE](apps/gitlab/) | 1.0.0 | development, devops | ubuntu-24.04 | - |
 | [Gluetun VPN Client](apps/gluetun/) | 3.40.0 | networking, security | debian-12 | - |
 | [Hello World (Nginx)](apps/hello-world/) | 1.0.1 | web, tools | debian-12 | - |
