@@ -170,3 +170,4 @@ inputs:
 ```
 
 Run tests with `pve-appstore test-apps --app <id>`.
+# Auto-refresh test Sat Feb 14 10:57:50 PM EST 2026
