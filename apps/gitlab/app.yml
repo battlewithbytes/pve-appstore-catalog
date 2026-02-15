@@ -10,7 +10,7 @@ overview: |
   Running GitLab on Proxmox LXC gives you a lightweight, fast self-hosted instance without
   the overhead of a full VM. Recommended minimum: 4 cores, 8 GB RAM, 20 GB disk for small
   teams (up to ~50 users).
-version: "1.1.1"
+version: "1.1.2"
 categories:
   - development
   - devops
@@ -121,13 +121,7 @@ volumes:
     label: Data
     required: true
     description: Git repositories, database, uploads, CI artifacts
-  - name: logs
-    type: volume
-    mount_path: /var/log/gitlab
-    size_gb: 5
-    label: Logs
-    required: true
-    description: GitLab service logs
+
 
 permissions:
   packages:
