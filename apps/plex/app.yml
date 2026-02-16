@@ -7,7 +7,7 @@ overview: |
   Plex supports movies, TV shows, music, photos, podcasts, and even live TV with DVR when paired with a tuner. The server transcodes media on-the-fly for devices that can't play the original format, and with Plex Pass, you can enable hardware-accelerated transcoding using Intel QSV or NVIDIA NVENC.
 
   After installation, access the web UI to sign in with your Plex account and add your media libraries. If you have a claim token, the server will automatically link to your account during setup.
-version: 1.41.0
+version: 1.41.1
 categories:
   - media
   - entertainment
@@ -98,8 +98,8 @@ permissions:
   urls: ["https://downloads.plex.tv/*"]
   paths: ["/mnt/media", "/tmp/plex-transcode", "/var/lib/plexmediaserver/", "/usr/share/keyrings/", "/etc/apt/sources.list.d/"]
   services: [plexmediaserver]
-  apt_repos: ["deb [signed-by=/usr/share/keyrings/plex-archive-keyring.gpg] https://downloads.plex.tv/repo/deb public main"]
-
+  apt_repos: ["https://downloads.plex.tv/repo/deb"]
+            
 provisioning:
   script: provision/install.py
   timeout_sec: 600
