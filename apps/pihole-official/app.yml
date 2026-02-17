@@ -1,0 +1,100 @@
+id: pihole-official
+name: "pihole-official"
+description: "Pi-hole is a Linux network-level advertisement and Internet tracker blocking application which acts as a DNS sinkhole and optionally a DHCP server, intended for use on a private network. It is designe..."
+version: "1.1.0"
+categories:
+  - networking
+
+maintainers:
+  - "ril3y"
+icon: "https://raw.githubusercontent.com/binhex/docker-templates/master/binhex/images/official-pihole-icon.png"
+
+lxc:
+  ostemplate: debian-12
+  defaults:
+    unprivileged: false
+    cores: 2
+    memory_mb: 1024
+    disk_gb: 8
+    onboot: true
+    require_static_ip: true
+
+inputs:
+  - key: port_web_interface
+    label: "Port: Web Interface"
+    type: number
+    default: 8155
+    required: true
+    validation:
+      min: 1
+      max: 65535
+    help: "Port 80 (tcp)"
+  - key: port_dns_tcp
+    label: "Port: DNS TCP"
+    type: number
+    default: 53
+    required: true
+    validation:
+      min: 1
+      max: 65535
+    help: "Port 53 (tcp)"
+  - key: port_network_discovery_udp
+    label: "Port: Network Discovery UDP"
+    type: number
+    default: 67
+    required: true
+    validation:
+      min: 1
+      max: 65535
+    help: "Port 67 (udp)"
+    
+  - key: dnsmasq_listening
+    label: "Variable: DNSMASQ_LISTENING"
+    type: string
+    default: "all"
+    required: true
+    help: "Specify the DNS settings Interface listening behavior to 'all', required when network is set to 'bridge'."
+    
+  - key: dns_1
+    label: Primary DNS
+    type: string
+    default: "8.8.8.8"
+    required: true
+    group: Network
+    description: Primary DNS server for the container
+    validation:
+      format: ipv4
+
+  - key: dns_2
+    label: Secondary DNS
+    type: string
+    default: "8.8.4.4"
+    required: false
+    group: Network
+    description: Secondary DNS server (optional fallback)
+    validation:
+      format: ipv4
+
+
+provisioning:
+  script: provision/install.py
+  timeout_sec: 600
+
+permissions:
+  commands: [curl, bash, sed, pihole-FTL]  
+  services:
+    - pihole-FTL
+  urls: ["https://install.pi-hole.net"]
+  paths:
+    - /etc/pihole
+
+outputs:
+  - key: url
+    label: "Web UI"
+    value: "http://{{IP}}:{{port_web_interface}}/admin"
+  - key: webui_port
+    label: "Web UI Port"
+    value: "{{port_web_interface}}"
+  - key: dns
+    label: "DNS Server"
+    value: "{{IP}}:{{port_dns_tcp}}"
