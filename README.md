@@ -2,7 +2,20 @@
 
 App catalog for the [PVE App Store](https://github.com/battlewithbytes/pve-appstore) — a collection of one-click LXC container apps for Proxmox VE.
 
-Browse and install apps through the web UI — search by name, category, or tag.
+Browse and install apps through the web UI at `http://your-proxmox-ip:8088`. Search by name, category, or tag.
+
+## Features
+
+- **One-click install** — pick an app, configure inputs, and the store creates an LXC container and provisions it automatically
+- **Live monitoring** — CPU, memory, disk, network stats polled from the Proxmox API
+- **Web terminal** — shell into any container directly from the browser
+- **Multi-app stacks** — bundle multiple apps into a single container with shared resources
+- **GPU passthrough** — Intel QSV and NVIDIA profiles for media transcoding and AI workloads
+- **Config backup & restore** — export all installs and settings as portable YAML
+- **Reconfigure in-place** — change app settings and container resources without rebuilding
+- **Developer mode** — build, test, and publish custom apps with a built-in IDE and GitHub integration
+- **Sandboxed provisioning** — Python SDK with enforced per-app permission boundaries
+- **Alpine + Debian support** — SDK auto-detects the OS and uses the right package manager, init system, and service management
 
 ## Apps
 
@@ -37,14 +50,53 @@ apps/<app-id>/
   test.yml             # Optional test config (inputs for automated testing)
 ```
 
-## Contributing
+## Creating an App
 
-To add a new app, create a directory under `apps/` with a unique kebab-case ID and include at minimum:
+There are two ways to create apps: using the built-in Developer IDE (recommended) or manually.
+
+### Option 1: Developer IDE (Recommended)
+
+The PVE App Store includes a full developer environment accessible from the web UI.
+
+![Developer IDE](devide.png)
+
+**Setup:**
+
+1. Open the web UI and go to **Settings**
+2. Enable **Developer Mode**
+3. Click **Developer** in the top navigation
+
+**Create your app:**
+
+1. Click **New App** and choose a starter template (Minimal, Web App, Database, etc.) or import from a Dockerfile/ZIP
+2. Edit the manifest (`app.yml`) and install script (`install.py`) in the built-in CodeMirror editor with SDK autocompletion and hover docs
+3. Click **Validate** — checks manifest schema, Python syntax, permission consistency, and unknown SDK methods
+4. Click **Deploy** to inject your app into the local catalog for testing — it appears alongside official apps
+5. Install and test your app from the Apps page like any other app
+6. Iterate: edit, validate, deploy, reinstall
+
+**Publish to the catalog:**
+
+1. In the Developer IDE, click **GitHub** and connect your GitHub account
+2. Fork this catalog repository (`battlewithbytes/pve-appstore-catalog`)
+3. Click **Publish** — this pushes your app to a branch on your fork
+4. Open a pull request from GitHub to submit your app for review
+5. Once merged, your app is available to all PVE App Store users
+
+**Alternatively, export and submit manually:**
+
+1. Click **Export** to download your app as a `.zip` file
+2. Extract it into `apps/<your-app-id>/` in your fork of this repo
+3. Open a pull request
+
+### Option 2: Manual Creation
+
+Create a directory under `apps/` with a unique kebab-case ID and include:
 
 1. `app.yml` — manifest following the schema below
-2. `provision/install.py` — Python install script using the App SDK
+2. `provision/install.py` — Python install script using the SDK
 
-### Manifest Schema (app.yml)
+## Manifest Schema (app.yml)
 
 ```yaml
 id: my-app                    # Unique kebab-case identifier
@@ -99,6 +151,16 @@ outputs:                      # Shown to user after install
   - key: url
     label: Web UI
     value: "http://{{ip}}:8080"
+
+volumes:                      # Managed volumes and bind mounts
+  - name: data
+    path: /opt/myapp/data
+    type: managed             # managed = auto-created on storage pool
+    default_size_gb: 10
+  - name: media
+    path: /mnt/media
+    type: bind                # bind = user provides host path
+    description: Path to media library
 
 gpu:
   supported: []               # empty, or [intel], [nvidia], [intel, nvidia]
@@ -155,9 +217,44 @@ Key SDK methods:
 | `chown()` | Change file/directory ownership |
 | `wait_for_http()` | Poll an HTTP endpoint until it responds 200 |
 | `write_env_file()` | Write a KEY=VALUE environment file |
+| `random_password()` | Generate a cryptographically secure password |
+| `pbkdf2_hash()` | Hash a password with PBKDF2 |
+| `sysctl()` | Apply persistent kernel parameters |
+| `disable_ipv6()` | Disable IPv6 in a container |
+| `run_shell()` | Run a shell command with pipes/redirects |
+| `pull_oci_binary()` | Extract a binary from a Docker/OCI image without Docker |
+| `enable_repo()` | Enable an OS package repository |
+| `create_venv()` | Create a Python virtual environment |
 | `status_page()` | Deploy a self-contained status page server |
 
 Use `inputs.string()`, `inputs.integer()`, and `inputs.boolean()` to read typed inputs. Keep config files as separate templates in `provision/` — avoid inline string constants.
+
+### Lifecycle Methods
+
+Apps can override these methods in their `BaseApp` subclass:
+
+| Method | When it runs |
+|--------|-------------|
+| `install()` | **Required.** Runs on first install |
+| `configure()` | Optional. Runs on reconfigure (change settings without full reinstall) |
+| `healthcheck()` | Optional. Validates the install succeeded |
+| `uninstall()` | Optional. Cleanup on removal |
+
+If your app defines `configure()`, `install()` should call `self.configure()` so the config logic is shared.
+
+### Platform Support
+
+The SDK auto-detects the container OS and uses the right tools:
+
+| Feature | Debian | Alpine |
+|---------|--------|--------|
+| Packages | `apt-get` | `apk` |
+| Services | systemd | OpenRC |
+| `create_service()` | `.service` unit | `/etc/init.d/` script |
+| `create_user()` | `useradd` | `adduser` |
+| Logs | `journalctl` | `/var/log/messages` |
+
+Use `pkg_install()` instead of `apt_install()` for OS-agnostic package installation.
 
 ### Test Config (test.yml)
 
@@ -170,4 +267,24 @@ inputs:
 ```
 
 Run tests with `pve-appstore test-apps --app <id>`.
-# Auto-refresh test Sat Feb 14 10:57:50 PM EST 2026
+
+## Contributing
+
+1. Fork this repository
+2. Create your app under `apps/<your-app-id>/` (or use the Developer IDE's Publish feature)
+3. Test it using Developer Mode's deploy feature
+4. Open a pull request
+
+**Guidelines:**
+- Use kebab-case for app IDs (`my-cool-app`)
+- Prefer unprivileged containers (`unprivileged: true`)
+- Keep LXC defaults minimal — users can increase resources at install time
+- Declare all permissions your script needs — the SDK blocks undeclared operations
+- Include an `icon.png` (256x256 recommended)
+- Add a `README.md` with setup notes, default credentials, and post-install steps
+
+## Links
+
+- [PVE App Store](https://github.com/battlewithbytes/pve-appstore) — the main application
+- [Install Guide](https://github.com/battlewithbytes/pve-appstore#quick-start) — one-liner setup
+- [Security Model](https://github.com/battlewithbytes/pve-appstore/blob/main/SECURITY.md) — how permissions work
