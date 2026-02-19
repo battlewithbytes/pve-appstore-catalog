@@ -7,7 +7,7 @@ overview: |
   Plex supports movies, TV shows, music, photos, podcasts, and even live TV with DVR when paired with a tuner. The server transcodes media on-the-fly for devices that can't play the original format, and with Plex Pass, you can enable hardware-accelerated transcoding using Intel QSV or NVIDIA NVENC.
 
   After installation, access the web UI to sign in with your Plex account and add your media libraries. If you have a claim token, the server will automatically link to your account during setup.
-version: 1.41.1
+version: 1.41.2
 categories:
   - media
   - entertainment
@@ -65,14 +65,6 @@ inputs:
     group: General
     description: A friendly name for this Plex server that appears in your Plex apps and account settings.
     help: Can be changed later in Plex settings
-  - key: media_path
-    label: Media Directory
-    type: string
-    default: /mnt/media
-    required: false
-    group: Storage
-    description: Root directory where your media files are stored. Use a bind mount from your Proxmox host or NFS share. You can add additional library paths in Plex's UI after setup.
-    help: "Example: /mnt/media or /mnt/nfs/shared"
   - key: transcode_path
     label: Transcode Directory
     type: string
@@ -110,11 +102,5 @@ outputs:
     value: "http://{{ip}}:{{http_port}}/web"
 
 gpu:
-  supported:
-    - intel
-    - nvidia
   required: false
-  profiles:
-    - dri-render
-    - nvidia-basic
   notes: Hardware transcoding requires Plex Pass and a supported GPU.

@@ -5,8 +5,8 @@ from appstore import BaseApp, run
 
 class JellyfinApp(BaseApp):
     def install(self):
-        media_path = self.inputs.string("media_path", "/mnt/media")
         http_port = self.inputs.integer("http_port", 8096)
+        media_path = "/mnt/media"  # Set by bind mount in manifest
         cache_path = self.inputs.string("cache_path", "/var/cache/jellyfin")
         transcode_threads = self.inputs.integer("transcode_threads", 0)
         hw_accel = self.inputs.string("hw_accel", "none")
