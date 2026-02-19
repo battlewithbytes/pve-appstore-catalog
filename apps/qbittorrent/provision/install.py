@@ -1,7 +1,5 @@
 """qBittorrent — lightweight BitTorrent client with WebUI (Alpine Linux)."""
 
-import base64
-import hashlib
 import os
 
 from appstore import BaseApp, run
@@ -11,13 +9,11 @@ class QBittorrentApp(BaseApp):
     def install(self):
         webui_port = self.inputs.string("webui_port", "8080")
         torrent_port = self.inputs.string("torrent_port", "6881")
-        download_path = self.inputs.string("download_path", "/downloads")
         password = self.inputs.string("initial_password", "changeme")
+        download_path = "/downloads"
 
         # Enable Alpine community repository (required for qbittorrent-nox)
-        self.run_command([
-            "sed", "-i", "s/#.*community/community/", "/etc/apk/repositories",
-        ])
+        self.enable_repo("community")
 
         # Install packages via OS-aware helper (apk on Alpine)
         self.pkg_install("qbittorrent-nox", "python3", "p7zip")
@@ -30,28 +26,27 @@ class QBittorrentApp(BaseApp):
         self.create_dir(config_dir)
         self.create_dir(download_path)
         self.create_dir(f"{download_path}/incomplete")
+        
+        # Only write config if it doesn't already exist (preserves settings on reinstall)
+        config_file = f"{config_dir}/qBittorrent.conf"
+        if not os.path.exists(config_file):
+            # Generate PBKDF2 password hash for qBittorrent config
+            h = self.pbkdf2_hash(password)
+            password_hash = f"@ByteArray({h['salt']}:{h['hash']})"
 
-        # Generate PBKDF2 password hash for qBittorrent config
-        salt = os.urandom(16)
-        dk = hashlib.pbkdf2_hmac("sha512", password.encode(), salt, 100000)
-        password_hash = (
-            f"@ByteArray({base64.b64encode(salt).decode()}"
-            f":{base64.b64encode(dk).decode()})"
-        )
-
-        # Read config template and write with substituted values
-        template = self.provision_file("qBittorrent.conf")
-        self.write_config(
-            f"{config_dir}/qBittorrent.conf",
-            template,
-            torrent_port=torrent_port,
-            download_path=download_path,
-            webui_port=webui_port,
-            password_hash=password_hash,
-        )
+            template = self.provision_file("qBittorrent.conf")
+            self.write_config(
+                config_file,
+                template,
+                torrent_port=torrent_port,
+                download_path=download_path,
+                webui_port=webui_port,
+                password_hash=password_hash,
+            )
 
         # Set ownership of all qbittorrent data
         self.chown("/var/lib/qbittorrent", "qbittorrent:qbittorrent", recursive=True)
+        self.chown(download_path, "qbittorrent:qbittorrent", recursive=True)
 
         # Create and start OpenRC service
         self.create_service(
