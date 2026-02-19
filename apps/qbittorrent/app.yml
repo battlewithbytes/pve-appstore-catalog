@@ -11,7 +11,7 @@ overview: |
   This container runs on Alpine Linux for minimal resource usage. After installation, access the
   WebUI to configure your download settings. The default login is admin with the password shown
   in the install outputs.
-version: "5.1.0"
+version: "5.1.2"
 categories:
   - media
   - tools
@@ -44,6 +44,13 @@ volumes:
     default_host_path: /mnt/storage/downloads
     required: false
     description: Download destination directory
+  - name: config
+    type: volume
+    mount_path: /var/lib/qbittorrent
+    size_gb: 1
+    label: Config
+    required: false
+    description: qBittorrent configuration and state (survives reinstall)
 
 inputs:
   - key: webui_port
@@ -68,14 +75,6 @@ inputs:
     validation:
       min: 1024
       max: 65535
-  - key: download_path
-    label: Download Directory
-    type: string
-    default: /downloads
-    required: false
-    group: Storage
-    description: Default download directory for completed torrents.
-    help: Must be an absolute path
   - key: initial_password
     label: Initial WebUI Password
     type: secret
@@ -94,14 +93,11 @@ permissions:
     - "/etc/init.d/"
     - "/var/lib/qbittorrent/"
     - "/downloads/"
-    - "/etc/apk/"
     - "/etc/conf.d/"
   services:
     - qbittorrent-nox
   users:
     - qbittorrent
-  commands:
-    - sed
 
 provisioning:
   script: provision/install.py
@@ -114,6 +110,9 @@ outputs:
   - key: webui_user
     label: Username
     value: admin
+  - key: webui_password
+    label: Password
+    value: "{{initial_password}}"
   - key: torrent_port
     label: Torrent Port
     value: "{{torrent_port}}"
