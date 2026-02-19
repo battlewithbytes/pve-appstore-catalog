@@ -28,11 +28,11 @@ Browse and install apps through the web UI at `http://your-proxmox-ip:8088`. Sea
 | [Gluetun VPN Client](apps/gluetun/) | 3.40.0 | networking, security | debian-12 | - |
 | [Hello World (Nginx)](apps/hello-world/) | 1.0.1 | web, tools | debian-12 | - |
 | [Home Assistant](apps/homeassistant/) | 2025.1.0 | automation, smart-home | debian-12 | - |
-| [Jellyfin](apps/jellyfin/) | 10.10.1 | media, entertainment | debian-12 | - |
+| [Jellyfin](apps/jellyfin/) | 10.10.2 | media, entertainment | debian-12 | - |
 | [Nginx](apps/nginx/) | 1.27.0 | networking, web | debian-12 | - |
 | [Ollama](apps/ollama/) | 0.6.1 | ai, tools | debian-12 | - |
 | [pihole-official](apps/pihole-official/) | 1.1.0 | networking | debian-12 | - |
-| [Plex Media Server](apps/plex/) | 1.41.2 | media, entertainment | debian-12 | - |
+| [Plex Media Server](apps/plex/) | 1.41.3 | media, entertainment | debian-12 | - |
 | [qBittorrent](apps/qbittorrent/) | 5.1.2 | media, tools | alpine-3.22 | - |
 | [Resilio Sync](apps/resilio-sync/) | 1.0.0 | utilities, backup | debian-12 | - |
 | [SWAG](apps/swag/) | 1.0.0 | networking | alpine-3.22 | - |
