@@ -5,7 +5,7 @@ from appstore import BaseApp, run
 
 class PlexApp(BaseApp):
     def install(self):
-        transcode_path = self.inputs.string("transcode_path", "/tmp/plex-transcode")
+        transcode_path = "/mnt/transcode"  # Set by bind mount in manifest
         media_path = "/mnt/media"  # Set by bind mount in manifest
         http_port = self.inputs.integer("http_port", 32400)
         friendly_name = self.inputs.string("friendly_name", "Proxmox Plex")

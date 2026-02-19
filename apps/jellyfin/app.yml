@@ -7,7 +7,7 @@ overview: |
   It automatically organizes your movies, TV shows, music, and photos with rich metadata from online databases. Clients are available for virtually every platform including web browsers, Android, iOS, Roku, Fire TV, and Kodi.
 
   Hardware-accelerated transcoding via Intel QSV or NVIDIA NVENC lets Jellyfin transcode media on-the-fly for devices that can't play the original format, without taxing the CPU. After installation, complete the setup wizard at the web UI to add your media libraries.
-version: 10.10.1
+version: 10.10.2
 categories:
   - media
   - entertainment
@@ -48,6 +48,13 @@ volumes:
     default_host_path: /mnt/storage/media
     required: false
     description: Map your media library folder (movies, TV, music)
+  - name: cache
+    type: bind
+    mount_path: /var/cache/jellyfin
+    label: Transcode Cache
+    default_host_path: /tmp/jellyfin-cache
+    required: false
+    description: Transcoding cache and temporary files. Map to SSD-backed host storage for best performance. Can grow large with active transcoding.
 
 inputs:
   - key: transcode_threads
@@ -69,14 +76,6 @@ inputs:
     validation:
       min: 1024
       max: 65535
-  - key: cache_path
-    label: Cache Directory
-    type: string
-    default: /var/cache/jellyfin
-    required: false
-    group: Storage
-    description: Directory for transcoding cache and temporary files. Use fast storage (SSD) for better transcoding performance. Can grow large with active transcoding.
-    help: Should be on fast storage; can be cleaned periodically
   - key: hw_accel
     label: Hardware Acceleration
     type: select
