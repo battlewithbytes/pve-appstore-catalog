@@ -1,5 +1,7 @@
 """Plex Media Server — personal media streaming."""
 
+import os
+
 from appstore import BaseApp, run
 
 
@@ -31,15 +33,19 @@ class PlexApp(BaseApp):
             claim_attr = f' ProcessedMachineIdentifier="" PlexOnlineToken="{claim_token}"'
             self.log.info("Claim token provided — server will be linked to your Plex account")
 
-        # Write Plex preferences from template
+        # Write Plex preferences — skip if already exists (reinstall with kept volume)
         prefs_dir = "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server"
+        prefs_file = f"{prefs_dir}/Preferences.xml"
         self.create_dir(prefs_dir)
-        self.render_template("Preferences.xml", f"{prefs_dir}/Preferences.xml",
-            friendly_name=friendly_name,
-            http_port=http_port,
-            transcode_path=transcode_path,
-            claim_attr=claim_attr,
-        )
+        if os.path.exists(prefs_file):
+            self.log.info("Existing Preferences.xml found — preserving settings from previous install")
+        else:
+            self.render_template("Preferences.xml", prefs_file,
+                friendly_name=friendly_name,
+                http_port=http_port,
+                transcode_path=transcode_path,
+                claim_attr=claim_attr,
+            )
         self.chown("/var/lib/plexmediaserver", "plex:plex", recursive=True)
 
         self.enable_service("plexmediaserver")
