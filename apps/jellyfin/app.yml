@@ -38,14 +38,13 @@ volumes:
     type: volume
     mount_path: /var/lib/jellyfin
     size_gb: 2
-    label: Jellyfin Data
+    label: Config & Metadata
     required: true
-    description: Application config and database
+    description: Jellyfin configuration, database, and media metadata
   - name: media
     type: bind
     mount_path: /mnt/media
     label: Media Library
-    default_host_path: /mnt/storage/media
     required: false
     description: Map your media library folder (movies, TV, music)
   - name: cache

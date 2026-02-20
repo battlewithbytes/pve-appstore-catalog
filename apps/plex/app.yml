@@ -38,14 +38,13 @@ volumes:
     type: volume
     mount_path: /var/lib/plexmediaserver
     size_gb: 5
-    label: Plex Data
+    label: Config & Metadata
     required: true
     description: Plex configuration, metadata, and database
   - name: media
     type: bind
     mount_path: /mnt/media
     label: Media Library
-    default_host_path: /mnt/storage/media
     required: false
     description: Map your media library folder (movies, TV, music)
   - name: transcode
