@@ -1,0 +1,147 @@
+id: pdf2text
+name: PDF2Text
+description: FastAPI service that extracts text from PDFs (markdown, chapters, ZIP, batch, async jobs).
+overview: |
+  PDF2Text is a self-hosted HTTP service that extracts text from PDF files with
+  options for chapter splitting, Markdown conversion, batch processing, async
+  jobs, and ZIP packaging. It exposes a REST API designed for LLM tool use and
+  a simple drag-and-drop web UI.
+
+  This app installs the service natively in an unprivileged LXC: Python venv +
+  systemd-managed uvicorn, no Docker-in-LXC. Source is cloned from
+  https://github.com/ril3y/pdf2text at install time and can be updated by
+  re-running the provision script.
+version: 0.1.0
+categories: [development, productivity]
+tags: [pdf, text-extraction, fastapi, llm, api]
+homepage: https://github.com/ril3y/pdf2text
+license: MIT
+maintainers: [Riley Porter]
+
+official: true
+
+lxc:
+  ostemplate: iso-storage:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
+  defaults:
+    unprivileged: true
+    cores: 2
+    memory_mb: 2048
+    disk_gb: 8
+    features: [nesting]
+    onboot: false
+
+inputs:
+  - key: git_ref
+    label: Git ref (branch/tag)
+    type: string
+    default: main
+    required: false
+    group: Source
+    description: Branch or tag to clone from https://github.com/ril3y/pdf2text.
+
+  - key: port
+    label: Listen port
+    type: number
+    default: 8000
+    required: false
+    group: Service
+    description: TCP port the service binds inside the CT.
+
+  - key: workers
+    label: Uvicorn workers
+    type: number
+    default: 4
+    required: false
+    group: Service
+    description: Number of uvicorn worker processes.
+
+  - key: max_file_size_mb
+    label: Max upload size (MB)
+    type: number
+    default: 50
+    required: false
+    group: Service
+    description: Largest PDF the service will accept per request.
+
+  - key: log_level
+    label: Log level
+    type: select
+    default: INFO
+    required: false
+    group: Service
+    options: [DEBUG, INFO, WARNING, ERROR]
+    description: Uvicorn / application log level.
+
+  - key: api_key
+    label: API key (optional)
+    type: secret
+    default: ""
+    required: false
+    group: Security
+    description: |
+      If set, every API call (except /, /docs, /api/v1/health) requires this
+      key via the X-API-Key header or ?api_key= query param. Leave blank to
+      run open (matches upstream default).
+
+permissions:
+  packages:
+    - python3
+    - python3-venv
+    - python3-pip
+    - python3-dev
+    - build-essential
+    - git
+    - curl
+    - ca-certificates
+  pip:
+    - fastapi
+    - uvicorn
+    - python-multipart
+    - jinja2
+    - aiofiles
+    - pydantic
+    - pydantic-settings
+    - pymupdf
+    - pdfplumber
+  urls:
+    - "https://github.com/*"
+    - "https://raw.githubusercontent.com/*"
+    - "https://codeload.github.com/*"
+    - "https://pypi.org/*"
+    - "https://files.pythonhosted.org/*"
+    - "http://127.0.0.1:*"
+  paths:
+    - "/opt/pdf2text/"
+    - "/opt/pdf2text-venv/"
+    - "/etc/default/"
+    - "/etc/systemd/system/"
+    - "/var/lib/pdf2text/"
+    - "/var/log/pdf2text/"
+  commands:
+    - git
+    - python3
+    - pip
+    - systemctl
+    - chown
+    - install
+    - useradd
+    - id
+  users:
+    - pdf2text
+  services:
+    - pdf2text
+
+provisioning:
+  script: provision/install.py
+  timeout_sec: 900
+
+outputs:
+  - key: web_ui
+    label: Web UI
+    value: "http://{{ip}}:{{port}}/"
+  - key: api_docs
+    label: API docs (Swagger)
+    value: "http://{{ip}}:{{port}}/docs"
+  - key: health
+    label: Health check
+    value: "http://{{ip}}:{{port}}/api/v1/health"
