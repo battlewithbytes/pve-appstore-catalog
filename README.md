@@ -31,6 +31,7 @@ Browse and install apps through the web UI at `http://your-proxmox-ip:8088`. Sea
 | [Jellyfin](apps/jellyfin/) | 10.10.2 | media, entertainment | debian-12 | - |
 | [Nginx](apps/nginx/) | 1.27.0 | networking, web | debian-12 | - |
 | [Ollama](apps/ollama/) | 0.6.1 | ai, tools | debian-12 | - |
+| [PDF2Text](apps/pdf2text/) | 0.1.0 | development, productivity | iso-storage:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst | - |
 | [pihole-official](apps/pihole-official/) | 1.1.0 | networking | debian-12 | - |
 | [Plex Media Server](apps/plex/) | 1.41.3 | media, entertainment | debian-12 | - |
 | [qBittorrent](apps/qbittorrent/) | 5.1.2 | media, tools | alpine-3.22 | - |
