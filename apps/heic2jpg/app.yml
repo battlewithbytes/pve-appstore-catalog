@@ -1,0 +1,84 @@
+id: heic2jpg
+name: HEIC to JPG
+description: Browser-based HEIC→JPG converter — drop iPhone photos, download a ZIP of JPGs. All conversion happens client-side.
+overview: |
+  A zero-backend single-page web app for converting Apple HEIC/HEIF photos to
+  JPG. Drag in multiple .heic files, the browser decodes them with libheif
+  (compiled to JavaScript), re-encodes to JPEG at a quality you choose, and
+  bundles the results into a downloadable ZIP.
+
+  Because all decoding, encoding, and zipping run in the visitor's browser,
+  the images never leave their machine — no uploads, no server-side processing,
+  no storage. This LXC simply serves the static HTML/JS/CSS over nginx. The
+  JavaScript libraries (libheif, JSZip) are bundled with the app, so it works
+  with no external CDN dependency.
+
+  Conversion runs in parallel across CPU cores: a pool of Web Workers (one per
+  core) each decode a HEIC and encode the JPEG via OffscreenCanvas, so large
+  batches convert quickly and the UI never freezes.
+version: 0.1.0
+categories:
+  - utilities
+  - media
+tags:
+  - heic
+  - jpeg
+  - converter
+  - client-side
+  - spa
+homepage: https://github.com/ril3y/heic2jpg
+license: MIT
+maintainers:
+  - Riley Porter
+
+official: false
+
+lxc:
+  ostemplate: iso-storage:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
+  defaults:
+    unprivileged: true
+    cores: 1
+    memory_mb: 512
+    disk_gb: 4
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: port
+    label: HTTP port
+    type: number
+    default: 80
+    required: false
+    group: Network
+    description: Port nginx listens on inside the CT.
+
+permissions:
+  packages:
+    - nginx-light
+    - ca-certificates
+  urls:
+    - "http://127.0.0.1:*"
+    - "http://127.0.0.1/*"
+  paths:
+    - "/etc/nginx/"
+    - "/var/log/nginx/"
+    - "/opt/heic2jpg/"
+  commands:
+    - systemctl
+    - nginx
+    - rm
+    - ln
+    - tar
+    - chown
+  services:
+    - nginx
+
+provisioning:
+  script: provision/install.py
+  timeout_sec: 600
+
+outputs:
+  - key: web_ui
+    label: Web UI
+    value: "http://{{ip}}:{{port}}/"
