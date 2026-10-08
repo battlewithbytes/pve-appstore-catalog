@@ -17,8 +17,22 @@ Install with the `nvidia-basic` GPU profile. PyTorch's CUDA wheels include their
 |---|---|---|
 | `models` | `/var/lib/comfyui/models` | ComfyUI `models/` tree (checkpoints, loras, vae, ...). Bind it to an existing host model library to avoid re-downloading. |
 | `output` | `/var/lib/comfyui/output` | Generated images. The gallery reads from here. |
+| `workflows` | `/var/lib/comfyui/workflows` | Saved workflows (the UI's Workflows sidebar, `/api/userdata/workflows`). |
 
-Both are symlinked into `/opt/comfyui`, so ComfyUI sees its normal layout. A host bind mount gets chowned to the container's root (UID 100000), which the host can still read.
+All three are symlinked into `/opt/comfyui`, so ComfyUI sees its normal layout. A host bind mount for `models` or `output` gets chowned to the container's root (UID 100000), which the host can still read. `workflows` keeps its host ownership (`shared_host_path`), so it can live inside a git repo.
+
+### Keeping a host folder writable from both sides
+
+Unprivileged containers shift IDs by 100000, and the appstore does not allow `lxc.idmap`. To share a host folder (for example `workflows`) with read-write access on both sides, use a shared group:
+
+```bash
+# host: group whose GID is 100000 + the container GID you pick (1000 here)
+groupadd -g 101000 comfyshare
+usermod -aG comfyshare <your-user>
+chgrp comfyshare /path/to/workflows && chmod 2775 /path/to/workflows
+```
+
+Then install with **Shared Group GID** = `1000`. ComfyUI runs with that supplementary group and `UMask=0002`, so files either side creates stay group-writable.
 
 ## Inputs
 
@@ -26,6 +40,9 @@ Both are symlinked into `/opt/comfyui`, so ComfyUI sees its normal layout. A hos
 - **PyTorch Build**: `cu128` (default), `cu126` or `cpu`.
 - **Install ComfyUI-Manager**: on by default.
 - **Download SDXL Base 1.0** (~6.9 GB) and **pixel-art-xl LoRA** (~170 MB): off by default; skipped if the file already exists.
+- **Download ControlNet Union (SDXL)** (~2.4 GB, Apache-2.0): xinsir ControlNet++ ProMax, one model for openpose, depth, canny, lineart, tile and more. Use with the core `ControlNetLoader` + `SetUnionControlNetType` nodes.
+- **Install IP-Adapter Plus (SDXL)** (~3.2 GB, Apache-2.0 models): the `ComfyUI_IPAdapter_plus` node (GPL-3.0) plus `ip-adapter-plus_sdxl_vit-h` and the ViT-H image encoder, under the filenames the node's unified loader expects. Transfers style or design from a reference image.
+- **Shared Group GID**: see above.
 - **Extra Launch Arguments**: e.g. `--lowvram`.
 
 ## How the gallery works

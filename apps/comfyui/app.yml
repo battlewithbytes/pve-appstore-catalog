@@ -22,11 +22,16 @@ overview: |
   Models live on their own volume (or a host bind mount you choose), so they
   survive reinstalls and can be shared with other tools. Optionally the
   installer downloads SDXL base 1.0 and the pixel-art-xl LoRA as a starter set,
+  the SDXL ControlNet-union model (pose/depth/lineart in one) and IP-Adapter
+  Plus (style/design transfer from a reference image) with its custom node,
   and installs ComfyUI-Manager for adding custom nodes from the UI.
+
+  Saved workflows live on their own volume too, so they can be bind-mounted
+  from a host folder (e.g. a git repo) and edited on both sides.
 
   The API listens on port 8188 by default: point any ComfyUI client at
   http://<container-ip>:8188.
-version: 0.1.0
+version: 0.2.0
 categories:
   - ai
   - media
@@ -83,6 +88,18 @@ volumes:
     label: Output
     required: true
     description: Generated images. Also served over the API at /view.
+
+  - name: workflows
+    type: volume
+    mount_path: /var/lib/comfyui/workflows
+    size_gb: 1
+    label: Workflows
+    required: true
+    shared_host_path: true
+    description: |
+      Saved workflows (the UI's Workflows sidebar, /api/userdata/workflows).
+      Bind it to a host folder to keep workflows in a repo. A bind mount keeps
+      its host ownership; set Shared Group GID so the container can write it.
 
 inputs:
   - key: port
@@ -160,6 +177,30 @@ inputs:
     group: Models
     description: Download nerijs/pixel-art-xl (~170 MB) into models/loras — an SDXL LoRA for retro pixel-art sprites. Skipped if already present.
 
+  - key: download_controlnet_union
+    label: Download ControlNet Union (SDXL)
+    type: boolean
+    default: false
+    required: false
+    group: Models
+    description: Download xinsir/controlnet-union-sdxl-1.0 ProMax (~2.4 GB, Apache-2.0) into models/controlnet. One model for openpose, depth, canny, lineart, tile and more; use with the core "SetUnionControlNetType" node.
+
+  - key: install_ipadapter
+    label: Install IP-Adapter Plus (SDXL)
+    type: boolean
+    default: false
+    required: false
+    group: Models
+    description: Install the ComfyUI_IPAdapter_plus custom node and download ip-adapter-plus_sdxl_vit-h (~0.8 GB) plus the ViT-H image encoder (~2.4 GB), both Apache-2.0. Transfers style/design from a reference image.
+
+  - key: share_gid
+    label: Shared Group GID
+    type: string
+    default: ""
+    required: false
+    group: Advanced
+    description: "Optional container GID (e.g. 1000). ComfyUI runs with this supplementary group and umask 0002, so host bind mounts owned by host group 100000+GID (e.g. 101000) stay writable by both the container and host users in that group."
+
   - key: extra_args
     label: Extra Launch Arguments
     type: string
@@ -203,6 +244,9 @@ permissions:
     - rm
     - chown
     - curl
+    - cp
+    - groupadd
+    - systemctl
   services:
     - comfyui
     - comfyui-gallery
