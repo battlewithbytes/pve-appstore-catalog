@@ -461,7 +461,7 @@ const $=s=>document.querySelector(s);
 const PAGE=120;let items=[],total=0,cur=-1,q="",timer,selecting=false,toastTimer;const sel=new Set();
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function imgUrl(p){return "/img/"+p.split("/").map(encodeURIComponent).join("/")}
+function imgUrl(e){return "/img/"+e.path.split("/").map(encodeURIComponent).join("/")+"?v="+e.mtime}
 function day(t){const d=new Date(t*1000);return d.toLocaleDateString(undefined,{weekday:"short",year:"numeric",month:"short",day:"numeric"})}
 async function load(reset){
   if(reset){items=[];$("#list").innerHTML=""}
@@ -474,7 +474,7 @@ function render(start){
     const e=items[i],d=day(e.mtime);
     if(d!==lastDay){const h=document.createElement("h2");h.textContent=d;list.append(h);grid=document.createElement("div");grid.className="grid";list.append(grid);lastDay=d}
     const c=document.createElement("div");c.className="card"+(sel.has(e.path)?" sel":"");c.tabIndex=0;
-    c.innerHTML=`<div class="thumb"><img loading="lazy" src="${imgUrl(e.path)}" alt=""></div><div class="cap">${esc((e.positive||[])[0]||e.path)}</div>`;
+    c.innerHTML=`<div class="thumb"><img loading="lazy" src="${imgUrl(e)}" alt=""></div><div class="cap">${esc((e.positive||[])[0]||e.path)}</div>`;
     const act=()=>{if(!selecting)return show(i);sel.has(e.path)?sel.delete(e.path):sel.add(e.path);c.classList.toggle("sel",sel.has(e.path));updSel()};
     c.onclick=act;c.onkeydown=ev=>{if(ev.key==="Enter"||(selecting&&ev.key===" ")){ev.preventDefault();act()}};grid.append(c);
   }
@@ -484,7 +484,7 @@ function render(start){
 function field(title,body,copy){return `<h3>${title}${copy?` <button class="btn sm" data-copy="${esc(copy)}">Copy</button>`:""}</h3>${body}`}
 function show(i){
   cur=i;const e=items[i];if(!e)return;
-  $("#big").src=imgUrl(e.path);$("#open").href=imgUrl(e.path);
+  $("#big").src=imgUrl(e);$("#open").href=imgUrl(e);
   $("#when").textContent=new Date(e.mtime*1000).toLocaleString();$("#dpath").textContent=e.path;
   $("#wf").hidden=!(e.has_workflow||e.has_prompt);$("#wf").href="/workflow/"+e.path.split("/").map(encodeURIComponent).join("/");
   let h="";
