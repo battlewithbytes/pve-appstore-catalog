@@ -1,0 +1,226 @@
+id: comfyui
+name: ComfyUI
+description: Node-based Stable Diffusion / image-generation server with web UI and HTTP API, GPU-accelerated on NVIDIA.
+overview: |
+  ComfyUI is a powerful node-graph interface and backend for diffusion models
+  (SD 1.5, SDXL, Flux, SD3 and more). Build workflows visually in the browser,
+  or drive it headlessly through its HTTP/WebSocket API from scripts, MCP
+  servers and other tools.
+
+  This app installs ComfyUI natively in an unprivileged LXC — Python venv plus
+  a systemd service, no Docker. PyTorch is installed from the official CUDA
+  wheels, which bundle their own CUDA runtime, so no CUDA toolkit is needed in
+  the container; only the host NVIDIA driver (passed through by the
+  nvidia-basic GPU profile). Without a GPU it falls back to CPU mode, which
+  works but is very slow.
+
+  A companion History Gallery (port 8189) shows every generated image with
+  the prompt, negative prompt, checkpoint, LoRAs, seed and sampler settings
+  that produced it. It reads the metadata ComfyUI embeds in each PNG, so the
+  history needs no database and survives restarts.
+
+  Models live on their own volume (or a host bind mount you choose), so they
+  survive reinstalls and can be shared with other tools. Optionally the
+  installer downloads SDXL base 1.0 and the pixel-art-xl LoRA as a starter set,
+  and installs ComfyUI-Manager for adding custom nodes from the UI.
+
+  The API listens on port 8188 by default: point any ComfyUI client at
+  http://<container-ip>:8188.
+version: 0.1.0
+categories:
+  - ai
+  - media
+tags:
+  - ai
+  - gpu
+  - stable-diffusion
+  - image-generation
+  - comfyui
+homepage: https://github.com/comfyanonymous/ComfyUI
+license: GPL-3.0
+maintainers:
+  - Riley Porter
+
+official: true
+
+lxc:
+  ostemplate: iso-storage:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst
+  defaults:
+    unprivileged: true
+    cores: 8
+    memory_mb: 16384
+    disk_gb: 32
+    features:
+      - nesting
+    onboot: true
+
+gpu:
+  required: false
+  supported:
+    - nvidia
+  profiles:
+    - nvidia-basic
+  notes: |
+    Strongly recommended: NVIDIA GPU with 8 GB+ VRAM for SDXL. The default
+    PyTorch build (CUDA 12.8) runs on host drivers 550+. Without a GPU,
+    ComfyUI starts in CPU mode.
+
+volumes:
+  - name: models
+    type: volume
+    mount_path: /var/lib/comfyui/models
+    size_gb: 64
+    label: Models
+    required: true
+    description: |
+      Checkpoints, LoRAs, VAEs, etc. (ComfyUI's models/ tree). Override with a
+      host bind mount to reuse an existing model library.
+
+  - name: output
+    type: volume
+    mount_path: /var/lib/comfyui/output
+    size_gb: 20
+    label: Output
+    required: true
+    description: Generated images. Also served over the API at /view.
+
+inputs:
+  - key: port
+    label: Port
+    type: number
+    default: 8188
+    required: false
+    group: Network
+    description: Port for the ComfyUI web UI and API.
+    validation:
+      min: 1024
+      max: 65535
+
+  - key: gallery_port
+    label: Gallery Port
+    type: number
+    default: 8189
+    required: false
+    group: Network
+    description: Port for the history gallery (every generated image with its prompt, model and settings).
+    validation:
+      min: 1024
+      max: 65535
+
+  - key: bind_address
+    label: Bind Address
+    type: string
+    default: 0.0.0.0
+    required: false
+    group: Network
+    description: Address to listen on. 0.0.0.0 makes the UI/API reachable from the LAN; 127.0.0.1 restricts it to the container.
+
+  - key: comfyui_ref
+    label: ComfyUI Version
+    type: string
+    default: master
+    required: false
+    group: Build
+    description: Git branch or tag of ComfyUI to install (e.g. master, v0.3.60).
+
+  - key: torch_variant
+    label: PyTorch Build
+    type: select
+    default: cu128
+    required: false
+    group: Build
+    description: PyTorch wheel flavor. cu128 suits RTX 20xx–50xx on driver 550+; cu126 for older stacks; cpu skips CUDA entirely.
+    validation:
+      enum:
+        - cu128
+        - cu126
+        - cpu
+
+  - key: install_manager
+    label: Install ComfyUI-Manager
+    type: boolean
+    default: true
+    required: false
+    group: Build
+    description: Adds the Manager panel for installing custom nodes and models from the UI.
+
+  - key: download_sdxl
+    label: Download SDXL Base 1.0
+    type: boolean
+    default: false
+    required: false
+    group: Models
+    description: Download stabilityai/stable-diffusion-xl-base-1.0 (~6.9 GB) into models/checkpoints. Skipped if already present.
+
+  - key: download_pixel_art_lora
+    label: Download pixel-art-xl LoRA
+    type: boolean
+    default: false
+    required: false
+    group: Models
+    description: Download nerijs/pixel-art-xl (~170 MB) into models/loras — an SDXL LoRA for retro pixel-art sprites. Skipped if already present.
+
+  - key: extra_args
+    label: Extra Launch Arguments
+    type: string
+    default: ""
+    required: false
+    group: Advanced
+    description: Extra flags appended to main.py (e.g. --lowvram, --preview-method auto).
+
+permissions:
+  packages:
+    - git
+    - ca-certificates
+    - curl
+    - python3
+    - python3-venv
+    - python3-dev
+    - build-essential
+    - libgl1
+    - libglib2.0-0
+  pip:
+    - pip
+    - torch
+    - torchvision
+    - torchaudio
+  urls:
+    - "http://127.0.0.1:*"
+    - "http://127.0.0.1/*"
+    - "https://huggingface.co/*"
+  paths:
+    - "/opt/comfyui/"
+    - "/opt/comfyui-venv/"
+    - "/opt/comfyui-gallery/"
+    - "/var/lib/comfyui/"
+    - "/etc/comfyui/"
+    - "/etc/systemd/system/"
+  commands:
+    - git
+    - pip
+    - python3
+    - ln
+    - rm
+    - chown
+    - curl
+  services:
+    - comfyui
+    - comfyui-gallery
+
+provisioning:
+  script: provision/install.py
+  timeout_sec: 3600
+
+outputs:
+  - key: web_ui
+    label: Web UI / API
+    value: "http://{{ip}}:{{port}}/"
+  - key: gallery
+    label: History Gallery
+    value: "http://{{ip}}:{{gallery_port}}/"
+  - key: models_dir
+    label: Models directory (inside CT)
+    value: /var/lib/comfyui/models
+  - key: logs
+    label: Logs
+    value: "journalctl -u comfyui -u comfyui-gallery -f  (inside the CT)"
