@@ -15,13 +15,17 @@ import glob
 import json
 import mimetypes
 import os
+import shutil
 import struct
 import threading
+import time
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+TRASH = ".trash"          # inside the output dir; dot-dirs are never indexed
+TRASH_DAYS = 30           # trashed files older than this are purged
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 
 
@@ -240,6 +244,88 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return full
 
+    def _trash_root(self):
+        return os.path.join(self.index.root, TRASH)
+
+    def _trash_path(self, rel):
+        trash = self._trash_root()
+        full = os.path.realpath(os.path.join(trash, rel))
+        if not full.startswith(trash + os.sep) or not os.path.isfile(full):
+            return None
+        return full
+
+    def _purge_trash(self):
+        cutoff = time.time() - TRASH_DAYS * 86400
+        for dirpath, _dirs, files in os.walk(self._trash_root(), topdown=False):
+            for name in files:
+                full = os.path.join(dirpath, name)
+                try:
+                    if os.stat(full).st_ctime < cutoff:  # ctime = when it was trashed
+                        os.remove(full)
+                except OSError:
+                    pass
+            if dirpath != self._trash_root():
+                try:
+                    os.rmdir(dirpath)
+                except OSError:
+                    pass
+
+    @staticmethod
+    def _unique(dest):
+        base, ext = os.path.splitext(dest)
+        n = 1
+        while os.path.exists(dest):
+            dest = f"{base}~{n}{ext}"
+            n += 1
+        return dest
+
+    def do_POST(self):
+        url = urlparse(self.path)
+        # A custom header forces a CORS preflight, so other sites can't post here.
+        if self.headers.get("X-Gallery") != "1":
+            return self._send(403, b"forbidden", "text/plain")
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length > 1_000_000:
+                raise ValueError
+            paths = json.loads(self.rfile.read(length) or b"{}").get("paths")
+            if not isinstance(paths, list) or not all(isinstance(p, str) for p in paths) or len(paths) > 5000:
+                raise ValueError
+        except ValueError:
+            return self._send(400, b"bad request", "text/plain")
+
+        done, failed = [], []
+        if url.path == "/api/delete":
+            for rel in paths:
+                full = self._safe_path(rel)
+                if not full or any(part.startswith(".") for part in rel.split("/")):
+                    failed.append(rel)
+                    continue
+                dest = self._unique(os.path.join(self._trash_root(), os.path.relpath(full, self.index.root)))
+                try:
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    os.rename(full, dest)
+                    done.append({"path": rel, "trash": os.path.relpath(dest, self._trash_root())})
+                except OSError:
+                    failed.append(rel)
+            self._purge_trash()
+            return self._json({"deleted": done, "failed": failed})
+        if url.path == "/api/restore":
+            for rel in paths:
+                full = self._trash_path(rel)
+                if not full:
+                    failed.append(rel)
+                    continue
+                dest = self._unique(os.path.join(self.index.root, rel))
+                try:
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    os.rename(full, dest)
+                    done.append(os.path.relpath(dest, self.index.root))
+                except OSError:
+                    failed.append(rel)
+            return self._json({"restored": done, "failed": failed})
+        self._send(404, b"not found", "text/plain")
+
     def do_HEAD(self):
         self.do_GET()
 
@@ -300,8 +386,8 @@ PAGE = r"""<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ComfyUI History</title>
 <style>
-:root{--bg:#f6f6f4;--panel:#fff;--fg:#1d1d1b;--muted:#6b6b66;--line:#e2e1dc;--accent:#3b6fd8;--chip:#eeede8;--check:#e8e8e3}
-@media (prefers-color-scheme:dark){:root{--bg:#141413;--panel:#1e1e1c;--fg:#ecebe6;--muted:#9a9993;--line:#2f2f2c;--accent:#7aa2f7;--chip:#2a2a27;--check:#232321}}
+:root{--bg:#f6f6f4;--panel:#fff;--fg:#1d1d1b;--muted:#6b6b66;--line:#e2e1dc;--accent:#3b6fd8;--chip:#eeede8;--check:#e8e8e3;--danger:#c4372d}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--panel:#1e1e1c;--fg:#ecebe6;--muted:#9a9993;--line:#2f2f2c;--accent:#7aa2f7;--chip:#2a2a27;--check:#232321;--danger:#f2786d}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -336,6 +422,14 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 .btn.sm{padding:2px 8px;font-size:11px;text-transform:none;letter-spacing:0}
 .top{display:flex;justify-content:space-between;align-items:start;gap:8px}
 .path{font-size:12px;color:var(--muted);word-break:break-all}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.card{position:relative}
+.selecting .card{cursor:copy}
+.card.sel{outline:3px solid var(--accent);outline-offset:-2px}
+.card.sel::after{content:"✓";position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+#toast button{background:none;border:none;color:var(--accent);font:inherit;font-weight:600;cursor:pointer}
 </style></head>
 <body>
 <header>
@@ -343,6 +437,8 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="q" type="search" placeholder="Search prompts, models, LoRAs, filenames…" autocomplete="off">
   <label class="t"><input type="checkbox" id="pix"> Pixel-perfect</label>
   <label class="t">Size <input type="range" id="tile" min="100" max="360" value="180"></label>
+  <button class="btn" id="selbtn" title="Select images to delete (Esc to exit)">Select</button>
+  <button class="btn danger" id="delsel" hidden>Delete selected</button>
 </header>
 <main><div id="list"></div><div id="empty" hidden>No images yet. Generate something in ComfyUI and it will show up here.</div>
 <button id="more" hidden>Load more</button></main>
@@ -356,11 +452,13 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <a class="btn" id="open" target="_blank" rel="noopener">Open full size</a>
       <a class="btn" id="wf">Download workflow</a>
       <button class="btn" id="prev">← Prev</button><button class="btn" id="next">Next →</button>
+      <button class="btn danger" id="del" title="Delete (Del key)">Delete</button>
     </div>
   </div></div></dialog>
+<div id="toast" hidden><span id="tmsg"></span><button id="undo">Undo</button></div>
 <script>
 const $=s=>document.querySelector(s);
-const PAGE=120;let items=[],total=0,cur=-1,q="",timer;
+const PAGE=120;let items=[],total=0,cur=-1,q="",timer,selecting=false,toastTimer;const sel=new Set();
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function imgUrl(p){return "/img/"+p.split("/").map(encodeURIComponent).join("/")}
@@ -375,9 +473,10 @@ function render(start){
   for(let i=start;i<items.length;i++){
     const e=items[i],d=day(e.mtime);
     if(d!==lastDay){const h=document.createElement("h2");h.textContent=d;list.append(h);grid=document.createElement("div");grid.className="grid";list.append(grid);lastDay=d}
-    const c=document.createElement("div");c.className="card";c.tabIndex=0;
+    const c=document.createElement("div");c.className="card"+(sel.has(e.path)?" sel":"");c.tabIndex=0;
     c.innerHTML=`<div class="thumb"><img loading="lazy" src="${imgUrl(e.path)}" alt=""></div><div class="cap">${esc((e.positive||[])[0]||e.path)}</div>`;
-    c.onclick=()=>show(i);c.onkeydown=ev=>{if(ev.key==="Enter")show(i)};grid.append(c);
+    const act=()=>{if(!selecting)return show(i);sel.has(e.path)?sel.delete(e.path):sel.add(e.path);c.classList.toggle("sel",sel.has(e.path));updSel()};
+    c.onclick=act;c.onkeydown=ev=>{if(ev.key==="Enter"||(selecting&&ev.key===" ")){ev.preventDefault();act()}};grid.append(c);
   }
   $("#count").textContent=`${total} image${total===1?"":"s"}`;
   $("#more").hidden=items.length>=total;$("#empty").hidden=total>0;
@@ -404,11 +503,35 @@ function show(i){
 }
 document.addEventListener("click",async ev=>{const b=ev.target.closest("[data-copy]");if(!b)return;
   try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent="Copied"}catch(e){b.textContent="Copy failed"}setTimeout(()=>b.textContent="Copy",1200)});
+function updSel(){const n=sel.size;$("#delsel").hidden=!selecting;$("#delsel").disabled=!n;$("#delsel").textContent=n?`Delete ${n}`:"Delete selected"}
+function setSelecting(on){selecting=on;if(!on)sel.clear();document.body.classList.toggle("selecting",on);$("#selbtn").classList.toggle("on",on);$("#selbtn").textContent=on?"Done":"Select";
+  document.querySelectorAll(".card.sel").forEach(c=>c.classList.remove("sel"));updSel()}
+function rerender(){$("#list").innerHTML="";render(0)}
+const api=(path,paths)=>fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Gallery":"1"},body:JSON.stringify({paths})}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
+function toast(msg,onUndo){clearTimeout(toastTimer);$("#tmsg").textContent=msg;$("#undo").hidden=!onUndo;$("#undo").onclick=async()=>{$("#toast").hidden=true;await onUndo()};
+  $("#toast").hidden=false;toastTimer=setTimeout(()=>$("#toast").hidden=true,10000)}
+async function del(paths){
+  if(!paths.length)return;
+  let res;try{res=await api("/api/delete",paths)}catch(e){return toast("Delete failed ("+e.message+")")}
+  const gone=new Set(res.deleted.map(d=>d.path));
+  items=items.filter(e=>!gone.has(e.path));total-=gone.size;gone.forEach(p=>sel.delete(p));rerender();updSel();
+  const n=gone.size;
+  toast(`Deleted ${n} image${n===1?"":"s"}`+(res.failed.length?` (${res.failed.length} failed)`:""),n?async()=>{
+    try{const r=await api("/api/restore",res.deleted.map(d=>d.trash));toast(`Restored ${r.restored.length}`)}catch(e){toast("Restore failed")}
+    await load(true)}:null);
+  return gone;
+}
+$("#del").onclick=async()=>{const e=items[cur];if(!e)return;const i=cur;await del([e.path]);
+  if(items[i])show(i);else if(i>0)show(i-1);else $("#dlg").close()};
+$("#selbtn").onclick=()=>setSelecting(!selecting);
+$("#delsel").onclick=async()=>{await del([...sel]);setSelecting(false)};
 $("#close").onclick=()=>$("#dlg").close();
 $("#dlg").addEventListener("click",ev=>{if(ev.target===$("#dlg"))$("#dlg").close()});
 $("#prev").onclick=()=>cur>0&&show(cur-1);
 $("#next").onclick=async()=>{if(cur+1>=items.length&&items.length<total)await load(false);if(cur+1<items.length)show(cur+1)};
-document.addEventListener("keydown",ev=>{if(!$("#dlg").open)return;if(ev.key==="ArrowLeft")$("#prev").click();if(ev.key==="ArrowRight")$("#next").click()});
+document.addEventListener("keydown",ev=>{
+  if(!$("#dlg").open){if(selecting&&ev.key==="Escape")setSelecting(false);if(selecting&&ev.key==="Delete"&&sel.size)$("#delsel").click();return}
+  if(ev.key==="ArrowLeft")$("#prev").click();if(ev.key==="ArrowRight")$("#next").click();if(ev.key==="Delete")$("#del").click()});
 $("#more").onclick=()=>load(false);
 $("#q").oninput=ev=>{clearTimeout(timer);timer=setTimeout(()=>{q=ev.target.value.trim();load(true)},250)};
 const pix=$("#pix");pix.checked=store.get("pix")!=="0";document.body.classList.toggle("pix",pix.checked);
@@ -416,7 +539,7 @@ pix.onchange=()=>{document.body.classList.toggle("pix",pix.checked);store.set("p
 const tile=$("#tile");tile.value=store.get("tile")||180;document.body.style.setProperty("--tile",tile.value+"px");
 tile.oninput=()=>{document.body.style.setProperty("--tile",tile.value+"px");store.set("tile",tile.value)};
 load(true);
-setInterval(async()=>{if(q||$("#dlg").open)return;const r=await fetch("/api/images?limit=1");const j=await r.json();if(j.total!==total)load(true)},15000);
+setInterval(async()=>{if(q||selecting||$("#dlg").open)return;const r=await fetch("/api/images?limit=1");const j=await r.json();if(j.total!==total)load(true)},15000);
 </script></body></html>
 """
 

@@ -49,7 +49,9 @@ Then install with **Shared Group GID** = `1000`. ComfyUI runs with that suppleme
 
 ComfyUI writes the executed graph as JSON into each PNG's `prompt` text chunk. The gallery (`/opt/comfyui-gallery/gallery.py`, Python stdlib only) scans the output volume, parses those chunks and traces each sampler's positive and negative conditioning back to the text encoders. It keeps no database, so the history covers every image on the volume, including ones made before the gallery was installed.
 
-API: `GET /api/images?q=<search>&offset=&limit=` returns JSON, `GET /img/<path>` returns the image and `GET /workflow/<path>` returns the embedded workflow.
+Delete images from the detail view (button or Del key) or in bulk with **Select**. Deleted files move to `output/.trash/` and can be undone from the toast; trash older than 30 days is purged.
+
+API: `GET /api/images?q=<search>&offset=&limit=` returns JSON, `GET /img/<path>` returns the image and `GET /workflow/<path>` returns the embedded workflow. `POST /api/delete` and `POST /api/restore` take `{"paths": [...]}` and require an `X-Gallery: 1` header.
 
 ## Using it from scripts / MCP servers
 
