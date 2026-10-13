@@ -1,0 +1,5 @@
+# Test configuration for ComfyUI
+# Skip multi-GB model downloads during testing — not needed to verify install.
+inputs:
+  download_sdxl: false
+  download_pixel_art_lora: false
