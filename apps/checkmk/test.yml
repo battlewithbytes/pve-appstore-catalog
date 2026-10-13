@@ -1,0 +1,4 @@
+# Test configuration for Checkmk Community
+inputs:
+  site_name: monitoring
+  timezone: Etc/UTC
