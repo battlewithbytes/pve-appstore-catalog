@@ -37,13 +37,27 @@ class GitLabApp(BaseApp):
         # Write configuration and reconfigure
         self.configure()
 
-        # Initial root password
+        # Initial root password — capture it as an output so it shows in the UI.
         initial_password = self.inputs.string("initial_root_password", "")
         if initial_password:
             self.log.info("Setting initial root password...")
             self.run_command([
                 "gitlab-rake", "gitlab:password:reset",
             ], input_text=f"root\n{initial_password}\n{initial_password}\n", check=False)
+        else:
+            # GitLab auto-generates a root password and writes it to this file
+            # (valid ~24h). Read it now so we can surface it before it is deleted.
+            try:
+                with open("/etc/gitlab/initial_root_password") as f:
+                    for line in f:
+                        if line.startswith("Password:"):
+                            initial_password = line.split(":", 1)[1].strip()
+                            break
+            except OSError:
+                pass
+
+        if initial_password:
+            self.log.output("initial_password", initial_password)
 
         self.log.info("GitLab CE installed successfully")
 
