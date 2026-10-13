@@ -1,0 +1,121 @@
+id: checkmk
+name: Checkmk Community
+description: IT infrastructure monitoring for servers, networks, containers, and applications.
+overview: |
+  Checkmk Community (formerly Checkmk Raw) is the free, open-source edition of
+  Checkmk, a comprehensive IT monitoring platform. It auto-discovers services on
+  Linux, Windows, network devices, cloud and container hosts, and ships with
+  thousands of check plug-ins, dashboards, notifications, and an event console.
+
+  This app installs the official Checkmk Community package on Ubuntu 26.04 and
+  creates a monitoring site using the OMD (Open Monitoring Distribution) layout.
+  The web UI is served by Apache at http://<container-ip>/<site>/.
+
+  Site data (configuration, RRD performance data, history) lives on a dedicated
+  volume (/omd/sites). Recommended minimum: 2 cores, 4 GB RAM for small
+  environments (up to a few hundred hosts).
+version: "2.5.0p15"
+categories:
+  - monitoring
+  - devops
+tags:
+  - monitoring
+  - nagios
+  - alerting
+  - snmp
+  - infrastructure
+homepage: https://checkmk.com
+license: GPL-2.0
+maintainers:
+  - PVE App Store
+
+official: true
+lxc:
+  ostemplate: ubuntu-26.04
+  defaults:
+    unprivileged: true
+    cores: 2
+    memory_mb: 4096
+    disk_gb: 16
+    features:
+      - nesting
+    onboot: true
+
+inputs:
+  - key: site_name
+    label: Site Name
+    type: string
+    default: monitoring
+    required: false
+    group: General
+    validation:
+      regex: "^[a-zA-Z][a-zA-Z0-9_]{0,15}$"
+    description: Name of the OMD monitoring site. Also the URL path (http://<ip>/<site>/) and Linux user.
+    help: "Letters, digits and underscores, starting with a letter, max 16 characters"
+  - key: admin_password
+    label: Admin Password
+    type: secret
+    required: false
+    reconfigurable: true
+    group: Security
+    validation:
+      min_length: 8
+    description: Password for the cmkadmin web user. If blank, a random password is generated and shown in outputs.
+    help: Minimum 8 characters
+  - key: timezone
+    label: Timezone
+    type: string
+    default: "Etc/UTC"
+    required: false
+    group: General
+    description: Container timezone (affects timestamps in the monitoring history).
+    help: "e.g. America/New_York"
+
+volumes:
+  - name: sites
+    type: volume
+    # /omd is a symlink to /opt/omd created by the package; mount the real path
+    # so the volume doesn't turn /omd into a plain directory first.
+    mount_path: /opt/omd/sites
+    size_gb: 20
+    label: Site Data
+    required: true
+    description: Checkmk site data — configuration, performance data (RRDs), logs, and history
+
+permissions:
+  packages:
+    - ca-certificates
+    - curl
+    - tzdata
+  urls:
+    - "https://download.checkmk.com/checkmk/*"
+    - "http://127.0.0.1/*"
+  paths:
+    - /tmp/
+    - /omd/
+    - /opt/omd/
+    - /etc/localtime
+    - /etc/timezone
+  commands:
+    - apt-get
+    - omd
+    - su
+    - rm
+    - dpkg-query
+
+provisioning:
+  script: provision/install.py
+  timeout_sec: 1800
+
+outputs:
+  - key: url
+    label: Web UI
+    value: "http://{{ip}}/{{site_name}}/"
+  - key: username
+    label: Username
+    value: cmkadmin
+  - key: admin_password
+    label: Admin Password
+    secret: true
+    # Emitted at runtime by provision/install.py (user-supplied or generated).
+    value: "{{admin_password}}"
