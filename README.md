@@ -23,6 +23,7 @@ Browse and install apps through the web UI at `http://your-proxmox-ip:8088`. Sea
 
 | App | Version | Category | OS | GPU |
 |-----|---------|----------|----|-----|
+| [ComfyUI](apps/comfyui/) | 0.2.0 | ai, media | iso-storage:vztmpl/debian-13-standard_13.1-2_amd64.tar.zst | nvidia |
 | [Crawl4AI](apps/crawl4ai/) | 0.5.0 | ai, tools | debian-12 | - |
 | [GitLab CE](apps/gitlab/) | 1.1.3 | development, devops | ubuntu-24.04 | - |
 | [Gluetun VPN Client](apps/gluetun/) | 3.40.0 | networking, security | debian-12 | - |
